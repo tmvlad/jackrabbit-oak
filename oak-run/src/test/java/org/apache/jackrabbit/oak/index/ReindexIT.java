@@ -366,6 +366,59 @@ public class ReindexIT extends LuceneAbstractIndexCommandTest {
         assertThat(indexPaths, hasItem("/oak:index/barIndex"));
     }
 
+    @Test
+    public void reindexFailsWhenNoIndexRules() throws Exception {
+        createTestData(true);
+        addTestContent(fixture, "/testNode/c", "bar", 100);
+        fixture.getAsyncIndexUpdate("async").run();
+
+        fixture.close();
+
+        IndexCommand command = new IndexCommand();
+
+        // A lucene index definition whose "indexRules" child node is missing. This can happen when a
+        // content package only imports the index node itself (e.g. a workspace filter on "oak:index"
+        // with an include pattern), stripping all child nodes. Without indexRules the indexing job
+        // would otherwise fall back to indexing all nodes and all properties.
+        String json = "{\n" +
+                "  \"/oak:index/barIndex\": {\n" +
+                "    \"compatVersion\": 2,\n" +
+                "    \"type\": \"lucene\",\n" +
+                "    \"async\": \"async\",\n" +
+                "    \"jcr:primaryType\": \"oak:QueryIndexDefinition\"\n" +
+                "  }\n" +
+                "}";
+
+        File jsonFile = temporaryFolder.newFile();
+        Files.writeString(jsonFile.toPath(), json);
+
+        File outDir = temporaryFolder.newFolder();
+        File storeDir = fixture.getDir();
+        String[] args = {
+                "--index-temp-dir=" + temporaryFolder.newFolder().getAbsolutePath(),
+                "--index-out-dir="  + outDir.getAbsolutePath(),
+                "--index-definitions-file=" + jsonFile.getAbsolutePath(),
+                "--reindex",
+                "--read-write",
+                "--", // -- indicates that options have ended and rest needs to be treated as non option
+                storeDir.getAbsolutePath()
+        };
+
+        Exception e = org.junit.Assert.assertThrows(Exception.class, () -> command.execute(args));
+        String message = rootCauseMessage(e);
+        assertThat(message, containsString("indexRules"));
+        assertThat(message, containsString("One possible root cause is that the filter in the index definition is on \"oak:index\""));
+        assertThat(message, containsString("https://jackrabbit.apache.org/oak/docs/query/indexing.html"));
+    }
+
+    private static String rootCauseMessage(Throwable t) {
+        Throwable cause = t;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return String.valueOf(cause.getMessage());
+    }
+
     private void indexBarPropertyAlso(IndexRepositoryFixture fixture2) throws IOException, RepositoryException {
         Session session = fixture2.getAdminSession();
         NodeState idxState = NodeStateUtils.getNode(fixture2.getNodeStore().getRoot(), TEST_INDEX_PATH);

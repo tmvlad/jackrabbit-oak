@@ -25,6 +25,7 @@ import org.apache.jackrabbit.oak.commons.PathUtils;
 import org.apache.jackrabbit.oak.plugins.commit.AnnotatingConflictHandler;
 import org.apache.jackrabbit.oak.plugins.commit.ConflictHook;
 import org.apache.jackrabbit.oak.plugins.commit.ConflictValidatorProvider;
+import org.apache.jackrabbit.oak.plugins.index.IndexDefinitionAudit;
 import org.apache.jackrabbit.oak.plugins.index.IndexEditorProvider;
 import org.apache.jackrabbit.oak.plugins.index.IndexUpdateProvider;
 import org.apache.jackrabbit.oak.spi.commit.CommitContext;
@@ -69,6 +70,6 @@ final class NodeStoreUtils {
 
     private static CommitInfo createCommitInfo() {
         Map<String, Object> info = Map.of(CommitContext.NAME, new SimpleCommitContext());
-        return new CommitInfo(CommitInfo.OAK_UNKNOWN, CommitInfo.OAK_UNKNOWN, info);
+        return new CommitInfo(IndexDefinitionAudit.ORIGIN_INDEX_IMPORTER, CommitInfo.OAK_UNKNOWN, info);
     }
 }
